@@ -20,6 +20,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 
+# create admin
 async def create_admin_controller(admin: AdminModel, db_manager: DatabaseManager):
     if db_manager.mongo_manager.db is None:
         raise HTTPException(
@@ -53,6 +54,7 @@ async def create_admin_controller(admin: AdminModel, db_manager: DatabaseManager
 
 
 
+# at admin by email
 async def get_admin_by_email_controller(email: str, db_manager: DatabaseManager):
     admin = await db_manager.mongo_manager.db['admins'].find_one({'email': email})
     if not admin:
@@ -64,6 +66,7 @@ async def get_admin_by_email_controller(email: str, db_manager: DatabaseManager)
 
 
 
+# get all admins
 async def get_all_admins_controller(db_manager: DatabaseManager) -> List[AdminModel]:
     admins_cursor = db_manager.mongo_manager.db['admins'].find()
     admins = await admins_cursor.to_list(length=None) # get all documents
@@ -75,3 +78,12 @@ async def get_all_admins_controller(db_manager: DatabaseManager) -> List[AdminMo
     for admin_data in admins:
         admin_models.append(AdminModel(**admin_data))
     return admin_models
+
+
+
+# delete admin
+async def delete_admin_controller(email: str, db_manager: DatabaseManager):
+    result = await db_manager.mongo_manager.db['admins'].delete_one({'email': email})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin not found")
+    return {"message": "Admin deleted successfully"}
