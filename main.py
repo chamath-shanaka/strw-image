@@ -6,7 +6,7 @@ from config import MONGO_URI, MONGO_DB_NAME
 from database import DatabaseManager
 from db_manager import connect_db
 from demo_page import demo_page
-from routes import flower, health, rover, mobile
+from routes import flower, health, rover, mobile, admin
 
 app = FastAPI()
 
@@ -24,6 +24,7 @@ app.include_router(flower.router)
 app.include_router(health.router)
 app.include_router(rover.router)
 app.include_router(mobile.router)
+app.include_router(admin.router)
 
 # DB connection
 db_manager = DatabaseManager()
