@@ -3,6 +3,8 @@ import time
 import inspect
 from typing import Callable, Any, Dict
 
+from fastapi import HTTPException
+
 
 class Task:
     def __init__(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None, route_path: str = None):
@@ -12,6 +14,8 @@ class Task:
         self.task_id = task_id or str(time.time())  # unique ID for tracking
         self.creation_time = time.time()
         self.route_path = route_path
+        self.result = None
+        self.future = asyncio.Future() # to store the result from coroutine
 
     def __lt__(self, other):
         return self.priority < other.priority
@@ -21,11 +25,18 @@ class Task:
         try:
             # check if the coroutine function expects a task_id
             if "task_id" in inspect.signature(self.coro).parameters:
-                return await self.coro(*self.args, task_id=self.task_id)
+                result = await self.coro(*self.args, task_id=self.task_id)
             else:
-                return await self.coro(*self.args)
+                result = await self.coro(*self.args)
+
+            self.future.set_result(result)
+            return result
+        except HTTPException as http_exc:  # catch HTTPExceptions
+            self.future.set_exception(http_exc)  # Set exception for the future
+            return None
         except Exception as e:
             print(f"\n⚠️ Task {self.task_id} failed: {e}\n") # logging
+            self.future.set_exception(e)
             return None # so that we can check if the task exited with failure
 
 
@@ -47,6 +58,7 @@ class SimpleScheduler:
         task = Task(coro, *args, priority=priority, task_id=task_id)
         await self.queue.put(task)
         print(f"Task {task.task_id} added to queue with priority {priority}.") # logging
+        return task.future
 
     async def worker(self):
         """Processes tasks from the queue."""
@@ -60,6 +72,8 @@ class SimpleScheduler:
     async def start(self, num_workers: int = 3): # NOTE: `num_workers` should be increased if deploying to a high performance cloud
         """Starts the scheduler's worker tasks. using asyncio.create_task"""
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
+        print("Simple Scheduler started 👌")
+
 
     async def stop(self):
         """Stops the scheduler and waits for all workers to finish."""
@@ -106,6 +120,7 @@ class CustomScheduler:
                     self.rover_queues[str(rover_id)] = self.rover_queues.get(str(rover_id), 0) + 1
 
         print(f"Task {task.task_id} added to queue with priority {priority} (path: {route_path}).")
+        return task.future
 
 
     async def worker(self):
@@ -162,6 +177,7 @@ class CustomScheduler:
 
     async def start(self, num_workers: int = 3):
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
+        print("Custom Scheduler started 👌")
 
 
     async def stop(self):
