@@ -74,10 +74,11 @@ class SimpleScheduler:
             self.queue.task_done() # indicates the completion
             print(f"✅ Task {task.task_id} completed.")
 
+
     async def start(self, num_workers: int = 3): # NOTE: `num_workers` should be increased if deploying to a high performance cloud
         """Starts the scheduler's worker tasks. using asyncio.create_task"""
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
-        print("Simple Scheduler started 👌")
+        print("Simple Scheduler started 👌\n")
 
 
     async def stop(self):
@@ -193,9 +194,10 @@ class CustomScheduler:
                         task.priority = max(0, task.priority - 1)
                         print(f"📈 Task {task.task_id} is increased to priority {task.priority} | {task.route_path}")
 
+
     async def start(self, num_workers: int = 3):
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
-        print("Custom Scheduler started 👌")
+        print("Custom Scheduler started 👌\n")
 
 
     async def stop(self):
