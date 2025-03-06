@@ -32,17 +32,17 @@ async def get_admin_by_email(email: str, dependencies: dict = Depends(get_db_and
         from controllers.admin import get_admin_by_email_controller
         try:
             result = await get_admin_by_email_controller(p_email, p_db_manager)
-            return result  # Return the actual result from the controller
-        except HTTPException as e:  # Catch HTTPExceptions from the controller
-            raise e # Re-raise to be handled by FastAPI
+            return result  # return the actual result from the controller
+        except HTTPException as e:
+            raise e # reraise to be handled by FastAPI
         except Exception as e:
             print(f"Task {task_id} failed: {e}")
             raise HTTPException(status_code = 500, detail = f"Internal Server Error: {e}")
 
-    # 1. Create a future (CompletableFuture in Java terms)
+    # create a compatible future for the API
     future = asyncio.Future()
 
-    # 2. Add the task to the scheduler, passing the future
+    # add the task to the scheduler, pass API's future
     await scheduler_instance.add_task(
         get_admin_by_email_task, email, db_manager,
         priority = 2,
@@ -51,11 +51,7 @@ async def get_admin_by_email(email: str, dependencies: dict = Depends(get_db_and
         existing_future = future
     )
 
-    # 3. Modify the Task.run() method to set the result on the future
-    # (See below - VERY IMPORTANT)
-
-    # 4. Await the future.  This blocks *this specific request handler*
-    #    until the task completes, but it does *not* block the entire server.
+    # await the future
     try:
         result = await future
         print(f"result after future: {result}")
