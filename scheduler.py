@@ -46,7 +46,7 @@ class SimpleScheduler:
         self.queue = asyncio.PriorityQueue() # stores Tasks
         self.workers = []
 
-    async def add_task(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None):
+    async def add_task(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None, existing_future: asyncio.Future = None):
         """Adds a task to the queue.
 
         Args:
@@ -54,17 +54,22 @@ class SimpleScheduler:
             *args: Arguments to pass to the coroutine.
             priority: The priority of the task (lower number = higher priority).
             task_id: The task ID.
+            existing_future: The future that is currently being executed passed by the API endpoint
         """
         task = Task(coro, *args, priority=priority, task_id=task_id)
+
+        if existing_future:
+            task.future = existing_future
+
         await self.queue.put(task)
-        print(f"Task {task.task_id} added to queue with priority {priority}.") # logging
+        print(f"🔼 Task {task.task_id} added to queue with priority {priority}.") # logging
         return task.future
 
     async def worker(self):
         """Processes tasks from the queue."""
         while True:
             task = await self.queue.get() # retrieves and removes the highest priority task
-            print(f"Running task {task.task_id}...")
+            print(f"🔃 Running task {task.task_id}...")
             await task.run()
             self.queue.task_done() # indicates the completion
             print(f"✅ Task {task.task_id} completed.")
@@ -103,23 +108,34 @@ class CustomScheduler:
         self.admin_inactivity_threshold = 600  # 10 minutes
         # self.admin_priority_reduction = 2
 
-    async def add_task(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None, route_path: str = None):
+    async def add_task(
+            self, coro: Callable,
+            *args: Any,
+            priority: int = 2,
+            task_id: str = None,
+            route_path: str = None,
+            existing_future: asyncio.Future = None
+    ):
         # Check for custom-priority paths
         if route_path in self.custom_priority_paths:
             priority = self.custom_priority_paths[route_path]
 
         task = Task(coro, *args, priority=priority, task_id=task_id, route_path=route_path)
+
+        if existing_future:
+            task.future = existing_future
+
         await self.queue.put(task)
 
-        # Update rover queue counts if applicable
+        # update rover queue counts if applicable
         if "rover_id" in inspect.signature(coro).parameters: # if it is a rover function
            rover_id_index = list(inspect.signature(coro).parameters.keys()).index("rover_id")
-           if len(args) > rover_id_index: # Make sure rover_id exists in arguments
+           if len(args) > rover_id_index: # make sure rover_id exists in arguments
                 rover_id = args[rover_id_index]
                 if rover_id:
                     self.rover_queues[str(rover_id)] = self.rover_queues.get(str(rover_id), 0) + 1
 
-        print(f"Task {task.task_id} added to queue with priority {priority} (path: {route_path}).")
+        print(f"🔼 Task {task.task_id} added to queue with priority {priority} (path: {route_path}).")
         return task.future
 
 
@@ -128,7 +144,7 @@ class CustomScheduler:
             task = await self.queue.get()
             start_time = time.time()
 
-            print(f"Running task {task.task_id}...")
+            print(f"🔃 Running task {task.task_id}...")
             await task.run()
             end_time = time.time()
             self.queue.task_done()
@@ -167,6 +183,7 @@ class CustomScheduler:
                         if len(task.args) > rover_id_index:
                             if task.args[rover_id_index] == rover_id:
                                 task.priority = max(0, task.priority - 1) # increase priority
+                                print(f"📈 Task {task.task_id} is increased to priority {task.priority} | {task.route_path}")
 
         # 2. Mobile App Response Times: if the average response time is too much, increase priority
         for route_path, avg_time in self.response_times.items():
@@ -174,6 +191,7 @@ class CustomScheduler:
                 for task in self.queue.queue:
                     if task.route_path == route_path:
                         task.priority = max(0, task.priority - 1)
+                        print(f"📈 Task {task.task_id} is increased to priority {task.priority} | {task.route_path}")
 
     async def start(self, num_workers: int = 3):
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
