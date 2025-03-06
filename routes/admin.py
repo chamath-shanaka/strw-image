@@ -43,7 +43,6 @@ async def get_admin_by_email(email: str, dependencies: dict = Depends(get_db_and
     # await for the future
     try:
         result = await future
-        print(f"result after future: {result}")
         return result # return the result of controller
     except HTTPException as e:
         raise e #re raise HTTPExceptions

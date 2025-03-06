@@ -1,6 +1,6 @@
 from fastapi import Request, Depends
 from database import DatabaseManager
-from scheduler import CustomScheduler
+from scheduler.scheduler import CustomScheduler
 
 # create single instances here
 db_manager = DatabaseManager()
