@@ -31,8 +31,8 @@ class Task:
 
             self.future.set_result(result)
             return result
-        except HTTPException as http_exc:  # catch HTTPExceptions
-            self.future.set_exception(http_exc)  # Set exception for the future
+        except HTTPException as http_exc:  # catch HTTP exceptions
+            self.future.set_exception(http_exc)  # set exception for the future
             return None
         except Exception as e:
             print(f"\n⚠️ Task {self.task_id} failed: {e}\n") # logging
@@ -118,6 +118,17 @@ class CustomScheduler:
             route_path: str = None,
             existing_future: asyncio.Future = None
     ):
+        """Adds a task to the queue.
+
+        Args:
+            :param coroutine: The coroutine function to execute.
+            :param args: Arguments to pass to the coroutine.
+            :param priority: The priority of the task (lower number = higher priority).
+            :param task_id: The task ID.
+            :param existing_future: The future that is currently being executed passed by the API endpoint
+            :param route_path: API path
+        """
+
         # Check for custom-priority paths
         if route_path in self.custom_priority_paths:
             priority = self.custom_priority_paths[route_path]

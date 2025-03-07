@@ -22,11 +22,11 @@ async def run_with_scheduler(controller_func: Callable, *args, dependencies: dic
 
     # add the task to the scheduler
     await scheduler_instance.add_task(
-        controller_func, *args, db_manager=db_manager,
-        priority=priority,
-        route_path=route_path,
-        task_id=None,
-        existing_future=future # pass API's future
+        controller_func, *args, db_manager, # the controller functions require db_manager
+        priority = priority,
+        route_path = route_path,
+        task_id = None,
+        existing_future = future # pass API's future
     )
 
     try:
