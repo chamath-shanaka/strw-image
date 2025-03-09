@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, status
 from controllers.mobile import (
     create_user_controller,
@@ -7,10 +9,10 @@ from controllers.mobile import (
     # update_rover_ids_controller,
     register_rover_controller,
     update_rover_nickname_controller,
-    get_flower_count_in_range_controller
+    get_flower_count_in_range_controller, get_rover_image_data_controller
 )
 from dependencies import get_db_and_scheduler
-from models.schemas import FlowerCountSummary
+from models.schemas import FlowerCountSummary, ImageData
 from models.userSchemas import UserModel
 from datetime import datetime
 
@@ -82,3 +84,9 @@ async def get_flower_count_in_range(
         get_flower_count_in_range_controller, userId, start_date, end_date,
         dependencies = dependencies
     )
+
+
+# get recoded image ddata from mongo
+@router.get("users/rovers/flower-images/{rover_id}", response_model=List[ImageData])
+async def get_rover_image_data(rover_id: int, dependencies: dict = Depends(get_db_and_scheduler)):
+    return await run_with_scheduler(get_rover_image_data_controller, rover_id, dependencies=dependencies)

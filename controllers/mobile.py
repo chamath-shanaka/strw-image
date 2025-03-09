@@ -238,6 +238,23 @@ async def get_flower_count_in_range_controller(userId: int, start_date: datetime
 
 
 
+async def get_rover_image_data_controller(rover_id: int, db_manager: DatabaseManager):
+    if db_manager.mongo_manager.db is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MongoDB connection is not established"
+        )
+
+    rover_image_data = await db_manager.mongo_manager.db['operations'].find({'rover_id': rover_id}).to_list(None)
+    if not rover_image_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No data found for this rover ID"
+        )
+    return rover_image_data
+
+
+
 
 
 ###
