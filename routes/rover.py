@@ -2,7 +2,10 @@ from typing import List
 
 from fastapi import APIRouter, HTTPException, status, Depends
 
+from controllers.mobile import get_rover_image_data_controller
 from db_manager import get_db_manager
+from dependencies import get_db_and_scheduler
+from scheduler.runner import run_with_scheduler
 from upload_image import upload_base64_image
 from models.schemas import RoverData, ImageData
 from database import DatabaseManager
@@ -116,17 +119,5 @@ async def run_trigger(db_manager: DatabaseManager = Depends(get_db_manager)):
 
 # get recoded image ddata from mongo
 @router.get("/rovers/flower-images/{rover_id}", response_model=List[ImageData])
-async def get_rover_image_data(rover_id: int, db_manager: DatabaseManager = Depends(get_db_manager)):
-    if db_manager.mongo_manager.db is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MongoDB connection is not established"
-        )
-
-    rover_image_data = await db_manager.mongo_manager.db['operations'].find({'rover_id': rover_id}).to_list(None)
-    if not rover_image_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No data found for this rover ID"
-        )
-    return rover_image_data
+async def get_rover_image_data_original_route(rover_id: int, dependencies: dict = Depends(get_db_and_scheduler)):
+    return await run_with_scheduler(get_rover_image_data_controller, rover_id, dependencies=dependencies)

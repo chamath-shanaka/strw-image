@@ -7,8 +7,8 @@ from fastapi import HTTPException
 
 
 class Task:
-    def __init__(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None, route_path: str = None):
-        self.coro = coro
+    def __init__(self, coroutine: Callable, *args: Any, priority: int = 2, task_id: str = None, route_path: str = None):
+        self.coroutine = coroutine
         self.args = args
         self.priority = priority
         self.task_id = task_id or str(time.time())  # unique ID for tracking
@@ -24,15 +24,15 @@ class Task:
         """Executes the coroutine with its arguments."""
         try:
             # check if the coroutine function expects a task_id
-            if "task_id" in inspect.signature(self.coro).parameters:
-                result = await self.coro(*self.args, task_id=self.task_id)
+            if "task_id" in inspect.signature(self.coroutine).parameters:
+                result = await self.coroutine(*self.args, task_id=self.task_id)
             else:
-                result = await self.coro(*self.args)
+                result = await self.coroutine(*self.args)
 
             self.future.set_result(result)
             return result
-        except HTTPException as http_exc:  # catch HTTPExceptions
-            self.future.set_exception(http_exc)  # Set exception for the future
+        except HTTPException as http_exc:  # catch HTTP exceptions
+            self.future.set_exception(http_exc)  # set exception for the future
             return None
         except Exception as e:
             print(f"\n⚠️ Task {self.task_id} failed: {e}\n") # logging
@@ -46,17 +46,17 @@ class SimpleScheduler:
         self.queue = asyncio.PriorityQueue() # stores Tasks
         self.workers = []
 
-    async def add_task(self, coro: Callable, *args: Any, priority: int = 2, task_id: str = None, existing_future: asyncio.Future = None):
+    async def add_task(self, coroutine: Callable, *args: Any, priority: int = 2, task_id: str = None, existing_future: asyncio.Future = None):
         """Adds a task to the queue.
 
         Args:
-            coro: The coroutine function to execute.
+            coroutine: The coroutine function to execute.
             *args: Arguments to pass to the coroutine.
             priority: The priority of the task (lower number = higher priority).
             task_id: The task ID.
             existing_future: The future that is currently being executed passed by the API endpoint
         """
-        task = Task(coro, *args, priority=priority, task_id=task_id)
+        task = Task(coroutine, *args, priority=priority, task_id=task_id)
 
         if existing_future:
             task.future = existing_future
@@ -74,10 +74,11 @@ class SimpleScheduler:
             self.queue.task_done() # indicates the completion
             print(f"✅ Task {task.task_id} completed.")
 
+
     async def start(self, num_workers: int = 3): # NOTE: `num_workers` should be increased if deploying to a high performance cloud
         """Starts the scheduler's worker tasks. using asyncio.create_task"""
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
-        print("Simple Scheduler started 👌")
+        print("Simple Scheduler started 👌\n")
 
 
     async def stop(self):
@@ -109,18 +110,30 @@ class CustomScheduler:
         # self.admin_priority_reduction = 2
 
     async def add_task(
-            self, coro: Callable,
+            self,
+            coroutine: Callable,
             *args: Any,
             priority: int = 2,
             task_id: str = None,
             route_path: str = None,
             existing_future: asyncio.Future = None
     ):
+        """Adds a task to the queue.
+
+        Args:
+            :param coroutine: The coroutine function to execute.
+            :param args: Arguments to pass to the coroutine.
+            :param priority: The priority of the task (lower number = higher priority).
+            :param task_id: The task ID.
+            :param existing_future: The future that is currently being executed passed by the API endpoint
+            :param route_path: API path
+        """
+
         # Check for custom-priority paths
         if route_path in self.custom_priority_paths:
             priority = self.custom_priority_paths[route_path]
 
-        task = Task(coro, *args, priority=priority, task_id=task_id, route_path=route_path)
+        task = Task(coroutine, *args, priority=priority, task_id=task_id, route_path=route_path)
 
         if existing_future:
             task.future = existing_future
@@ -128,8 +141,8 @@ class CustomScheduler:
         await self.queue.put(task)
 
         # update rover queue counts if applicable
-        if "rover_id" in inspect.signature(coro).parameters: # if it is a rover function
-           rover_id_index = list(inspect.signature(coro).parameters.keys()).index("rover_id")
+        if "rover_id" in inspect.signature(coroutine).parameters: # if it is a rover function
+           rover_id_index = list(inspect.signature(coroutine).parameters.keys()).index("rover_id")
            if len(args) > rover_id_index: # make sure rover_id exists in arguments
                 rover_id = args[rover_id_index]
                 if rover_id:
@@ -160,14 +173,14 @@ class CustomScheduler:
                     self.response_times[task.route_path] = end_time - start_time
 
             # update rover queue counts
-            if "rover_id" in inspect.signature(task.coro).parameters:
-                rover_id_index = list(inspect.signature(task.coro).parameters.keys()).index("rover_id")
+            if "rover_id" in inspect.signature(task.coroutine).parameters:
+                rover_id_index = list(inspect.signature(task.coroutine).parameters.keys()).index("rover_id")
                 if len(task.args) > rover_id_index:
                     rover_id = task.args[rover_id_index]
                     if rover_id:
                         self.rover_queues[str(rover_id)] = max(0, self.rover_queues.get(str(rover_id), 0) - 1)
 
-            print(f"✅ Task {task.task_id} completed in {end_time - start_time:.4f} seconds.")
+            print(f"✅ Task {task.task_id} completed in {end_time - start_time:.6f} seconds.")
             await self.dynamic_adjust() # call dynamic adjustment after each task
 
 
@@ -178,8 +191,8 @@ class CustomScheduler:
             if count > self.rover_queue_threshold:
                 # Increase priority of rover tasks
                 for task in self.queue.queue:  # iterate through the "queue"
-                    if "rover_id" in inspect.signature(task.coro).parameters:
-                        rover_id_index = list(inspect.signature(task.coro).parameters.keys()).index("rover_id")
+                    if "rover_id" in inspect.signature(task.coroutine).parameters:
+                        rover_id_index = list(inspect.signature(task.coroutine).parameters.keys()).index("rover_id")
                         if len(task.args) > rover_id_index:
                             if task.args[rover_id_index] == rover_id:
                                 task.priority = max(0, task.priority - 1) # increase priority
@@ -193,9 +206,10 @@ class CustomScheduler:
                         task.priority = max(0, task.priority - 1)
                         print(f"📈 Task {task.task_id} is increased to priority {task.priority} | {task.route_path}")
 
+
     async def start(self, num_workers: int = 3):
         self.workers = [asyncio.create_task(self.worker()) for _ in range(num_workers)]
-        print("Custom Scheduler started 👌")
+        print("Custom Scheduler started 👌\n")
 
 
     async def stop(self):
