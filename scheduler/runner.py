@@ -15,7 +15,7 @@ async def run_with_scheduler(controller_func: Callable, *args, dependencies: dic
     """
     db_manager = dependencies["db_manager"]
     scheduler_instance = dependencies["scheduler"]
-    route_path = dependencies["route_path"]
+    # route_path = dependencies["route_path"]
 
     # creating a passable future for the API
     future = asyncio.Future()
@@ -24,7 +24,7 @@ async def run_with_scheduler(controller_func: Callable, *args, dependencies: dic
     await scheduler_instance.add_task(
         controller_func, *args, db_manager, # the controller functions require db_manager
         priority = priority,
-        route_path = route_path,
+        # route_path = route_path,
         task_id = None,
         existing_future = future # pass API's future
     )

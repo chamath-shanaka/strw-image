@@ -1,10 +1,10 @@
-from fastapi import Request, Depends
+from fastapi import Request
 from database import DatabaseManager
-from scheduler.scheduler import CustomScheduler
+from scheduler.scheduler import SimpleScheduler
 
 # create single instances here
 db_manager = DatabaseManager()
-scheduler = CustomScheduler()
+scheduler = SimpleScheduler()
 
 
 # function to initialize and connect the database manager
@@ -43,6 +43,6 @@ async def start_scheduler():
     await scheduler.start()
 
     # Set custom priority paths
-    scheduler.set_custom_priority_paths({
-        "/users/{userId}/get-flower-count": 1
-    })
+    # scheduler.set_custom_priority_paths({
+    #     "/users/{userId}/get-flower-count": 1
+    # })
